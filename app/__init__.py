@@ -1,0 +1,1 @@
+"""Paquete de la aplicacion de escritorio animelite."""

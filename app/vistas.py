@@ -45,7 +45,7 @@ class VistaInicio(Vista):
         centro.addWidget(self.btn, 0, Qt.AlignHCenter)
 
         self.tit = QLabel()
-        self.tit.setObjectName("vacio_tit")
+        self.tit.setObjectName("vacio_titulo")
         self.tit.setAlignment(Qt.AlignCenter)
         centro.addSpacing(22)
         centro.addWidget(self.tit)
@@ -94,7 +94,7 @@ class VistaInicio(Vista):
     def retraducir(self):
         self.entrada.setPlaceholderText(i18n.tr("buscar_ph"))
         self.btn.setText(i18n.tr("buscar_btn"))
-        self.tit.setText(i18n.tr("vacio_tit"))
+        self.tit.setText(i18n.tr("vacio_titulo"))
         self.sub.setText(i18n.tr("vacio_sub"))
         self.chip.setText(i18n.tr("siguiendo").upper())
 
@@ -306,7 +306,7 @@ class DialogoServidores(QDialog):
             lay.addStretch()
             ms = c.get("ttfb_ms")
             if ms is None:
-                lat = QLabel("—")
+                lat = QLabel(i18n.tr("sin_medir"))
                 lat.setObjectName("lat_malo")
             else:
                 lat = QLabel(f"{int(ms)} ms  ·  "

@@ -1,6 +1,5 @@
 """Instalador para la app de escritorio animelite."""
 import os
-import shutil
 import subprocess
 import sys
 

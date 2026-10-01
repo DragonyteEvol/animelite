@@ -4,7 +4,6 @@ Ninguna llamada de red ocurre en el hilo de la UI: todo se lanza en el
 QThreadPool y vuelve por señales.
 """
 import re
-import sys
 import unicodedata
 from dataclasses import dataclass, field
 
@@ -94,7 +93,8 @@ def episodios_por_sitio(grupo: Grupo, limite=8.0) -> list:
     ex = ThreadPoolExecutor(max_workers=len(entradas))
     salida = {}
     try:
-        futuros = {ex.submit(s.episodios, a): (s, a) for s, a in entradas}
+        futuros = {ex.submit(s.episodios, a): i
+                   for i, (s, a) in enumerate(entradas)}
         pendientes = set(futuros)
         while pendientes:
             resto = limite - (time.perf_counter() - t0)
@@ -103,18 +103,19 @@ def episodios_por_sitio(grupo: Grupo, limite=8.0) -> list:
             done, pendientes = wait(pendientes, timeout=resto,
                                     return_when=FIRST_COMPLETED)
             for f in done:
+                i = futuros[f]
                 try:
-                    salida[futuros[f]] = f.result()
+                    salida[i] = f.result()
                 except Exception:
-                    salida[futuros[f]] = []
+                    salida[i] = []
         for f in futuros:
             f.cancel()
     finally:
         ex.shutdown(wait=False)
 
     bloques = []
-    for s, a in entradas:
-        eps = salida.get((s, a)) or []
+    for i, (s, a) in enumerate(entradas):
+        eps = salida.get(i) or []
         if not eps:
             continue
         nums = [e.numero for e in eps]
@@ -225,7 +226,7 @@ def medir(streams, on_progreso=None) -> list:
 
     if not streams:
         return []
-    return probe.probar_rapido_lista(streams, ventana=1.5, fallback=2.0)
+    return probe.probar_rapido_lista(streams, ventana=2.5, fallback=3.0)
 
 
 def candidatos_ok(streams, medidos) -> list:
@@ -245,3 +246,25 @@ def candidatos_ok(streams, medidos) -> list:
                     "ttfb_ms": m.get("ttfb_ms"), "mbps": m.get("mbps"),
                     "stream": st})
     return out
+
+
+def candidatos_todos(streams, medidos) -> list:
+    """Todos los servidores: primero los medidos (por TTFB), luego los que la
+    sonda no pudo medir (muchos CDN rechazan el probe pero mpv los reproduce)."""
+    out = candidatos_ok(streams, medidos)
+    ok_urls = {c["url"] for c in out}
+    for s in streams:
+        if s.url in ok_urls:
+            continue
+        ok_urls.add(s.url)
+        out.append({"host": s.host, "url": s.url, "ttfb_ms": None,
+                    "mbps": None, "stream": s})
+    return out
+
+
+def mejor(candidatos) -> dict:
+    """Elige el candidato a reproducir: el medido mas rapido o el primero."""
+    if not candidatos:
+        return None
+    medidos = [c for c in candidatos if c.get("ttfb_ms") is not None]
+    return (medidos or candidatos)[0]

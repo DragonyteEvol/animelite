@@ -235,7 +235,7 @@ QPushButton:disabled {{
 }}
 
 /* ---------- varios ---------- */
-#vacio_tit {{
+#vacio_titulo {{
     background: transparent;
     font-size: 22px;
     font-weight: 600;
@@ -332,3 +332,7 @@ def acento() -> str:
 
 def acento2() -> str:
     return paleta()["a2"]
+
+
+def tema() -> str:
+    return tema_actual()

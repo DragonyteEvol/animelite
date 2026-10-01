@@ -8,6 +8,9 @@ from .ventana import Ventana
 
 
 def main():
+    if "--selftest" in sys.argv:
+        from .selftest import main as selftest_main
+        raise SystemExit(selftest_main(sys.argv[1:]))
     i18n.cargar()
     app = QApplication(sys.argv)
     app.setApplicationName("animelite")

@@ -1,9 +1,7 @@
 """Ventana principal: cabecera, pila de vistas y orquestacion."""
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
-    QApplication, QFrame, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
-    QProgressBar, QPushButton, QStackedWidget, QVBoxLayout, QWidget,
+    QApplication, QHBoxLayout, QLabel, QMessageBox, QProgressBar,
+    QPushButton, QStackedWidget, QVBoxLayout, QWidget,
 )
 
 from . import historial, i18n, motor, tema, worker
@@ -27,6 +25,7 @@ class Ventana(QWidget):
         self.bloques = []
         self.candidatos = []
         self.cap_actual = 0
+        self._streams_actuales = []
         self.tarea_ep = None
         self.tarea_streams = None
 
@@ -234,12 +233,12 @@ class Ventana(QWidget):
         )
 
     def _medidos(self, medidos):
-        self.candidatos = motor.candidatos_ok(
+        self.candidatos = motor.candidatos_todos(
             self._streams_actuales or [], medidos)
         self.detalle.btn_servidores.setEnabled(bool(self.candidatos))
         self._marcar_historial()
         if self.candidatos:
-            self._abrir_candidato(self.candidatos[0])
+            self._abrir_candidato(motor.mejor(self.candidatos))
         else:
             self.estado.setText(i18n.tr("sin_respuesta"))
 

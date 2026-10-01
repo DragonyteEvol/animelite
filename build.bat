@@ -16,12 +16,12 @@ echo [*] Construyendo EXE con PyInstaller...
   --onefile ^
   --windowed ^
   --noconsole ^
-  --add-data "app;app" ^
+  --paths . ^
   --collect-submodules resolvers ^
   --collect-submodules sitios ^
   --collect-submodules core ^
   --clean ^
-  app\main.py
+  run.py
 
 if errorlevel 1 (
   echo [!] Error al compilar con PyInstaller.

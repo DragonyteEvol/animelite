@@ -21,6 +21,23 @@ Interfaz gráfica minimalista y fluida para buscar, explorar y ver anime. Usa el
 2. Hacer doble clic en `build.bat`.
 3. Ejecutar `dist\animelite.exe`.
 
+El ejecutable resultante pesa unos 42 MB e incluye el motor, las fuentes, los
+resolvers y Qt. No necesita Python instalado.
+
+## Diagnóstico
+
+Si algo falla (por ejemplo en otro equipo), el autodiagnóstico comprueba el
+motor completo — fuentes, capítulos, servidores y portadas — y escribe un
+informe, sin abrir la interfaz:
+
+```
+dist\animelite.exe --selftest
+dist\animelite.exe --selftest frieren
+```
+
+El informe queda en `%APPDATA%\animelite\selftest.log` (código de salida 0 =
+todo correcto).
+
 ## Uso
 
 1. Escribir el nombre del anime y pulsar `Enter`.
@@ -50,6 +67,7 @@ Interfaz gráfica minimalista y fluida para buscar, explorar y ver anime. Usa el
 ## Estructura
 
 ```
+run.py            # Lanzador (tambien entrypoint de PyInstaller)
 app/
   main.py        # Entrada
   ventana.py     # Orquestación + navegación
@@ -62,4 +80,5 @@ app/
   i18n.py        # Traducciones ES/EN
   tema.py        # Paletas claro/oscuro + QSS
   reproductor.py # Lanzamiento mpv externo
+  selftest.py    # Autodiagnostico sin interfaz
 ```

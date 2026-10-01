@@ -5,13 +5,12 @@ from urllib.parse import urlparse
 from PySide6.QtCore import (
     QEasingCurve, QPointF, QPropertyAnimation, QRectF, Qt, QTimer, Signal,
 )
-from PySide6.QtGui import QColor, QPainter, QPixmap
+from PySide6.QtGui import QPainter, QPixmap
+from PySide6.QtNetwork import QNetworkReply
 from PySide6.QtWidgets import (
     QFrame, QGraphicsProxyWidget, QGraphicsScene, QGraphicsView, QLabel,
     QSizePolicy, QVBoxLayout, QWidget,
 )
-
-from . import tema
 
 
 def _cache_dir() -> str:
@@ -24,10 +23,13 @@ def _cache_dir() -> str:
 class CargadorImagenes:
     """Descarga y cachea portadas (QNetworkAccessManager, asincrono)."""
 
+    TIMEOUT_MS = 9000
+
     def __init__(self, parent=None):
         from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest
         self._memoria = {}
         self._pendientes = {}
+        self._vivos = {}
         self._nam = QNetworkAccessManager(parent)
         self._req = QNetworkRequest
         self._parent = parent
@@ -55,14 +57,30 @@ class CargadorImagenes:
             return
         self._pendientes[url] = [al_recibir]
         req = self._req(url)
+        req.setAttribute(
+            self._req.Attribute.CacheLoadControlAttribute,
+            self._req.CacheLoadControl.AlwaysNetwork)
         resp = self._nam.get(req)
-        resp.finished.connect(lambda r, u=url: self._al_terminar(r, u))
+        self._vivos[url] = resp
+        resp.finished.connect(lambda r=resp, u=url: self._al_terminar(r, u))
+        QTimer.singleShot(self.TIMEOUT_MS, lambda u=url: self._vencer(u))
+
+    def _vencer(self, url):
+        resp = self._vivos.get(url)
+        if resp is not None and resp.isRunning():
+            resp.abort()
 
     def _al_terminar(self, resp, url):
+        self._vivos.pop(url, None)
         callbacks = self._pendientes.pop(url, [])
+        if resp.error() != QNetworkReply.NetworkError.NoError:
+            for cb in callbacks:
+                try:
+                    cb(url, None)
+                except Exception:
+                    pass
+            return
         try:
-            if resp.error() is not None or resp.isFinished() is None:
-                return
             datos = resp.readAll()
             pix = QPixmap()
             if pix.loadFromData(datos):
@@ -70,8 +88,15 @@ class CargadorImagenes:
                 self._guardar(url, pix)
                 for cb in callbacks:
                     cb(url, pix)
+            else:
+                for cb in callbacks:
+                    cb(url, None)
         except Exception:
-            pass
+            for cb in callbacks:
+                try:
+                    cb(url, None)
+                except Exception:
+                    pass
 
     @staticmethod
     def _ruta_cache(url):
@@ -142,6 +167,8 @@ class CardPoster(QFrame):
         lay.addWidget(pie)
 
     def set_imagen(self, pix: QPixmap) -> None:
+        if pix is None or pix.isNull():
+            return
         p = QPixmap(pix)
         p = p.scaled(self.img.width(), self.img.height(),
                      Qt.KeepAspectRatioByExpanding,
@@ -198,7 +225,7 @@ class Lienzo(QGraphicsView):
         self.setFrameShape(QFrame.NoFrame)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Scrolling)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
         self._items = []          # [(proxy, widget)]
         self._anims = {}
         self._gap = 18
@@ -214,28 +241,30 @@ class Lienzo(QGraphicsView):
     def agregar(self, widget: CardPoster):
         proxy = self._escena.addWidget(widget)
         proxy.setFlag(QGraphicsProxyWidget.ItemIsSelectable, False)
-        self._hover = widget._hover
+        proxy.setTransformOriginPoint(
+            widget.width() / 2, widget.height() / 2)
         widget._hover.connect(self._escalar)
         self._items.append((proxy, widget))
         self._reubicar()
         return proxy
 
+    def tarjetas(self):
+        return [w for _p, w in self._items]
+
     def _escalar(self, hover, widget):
         proxy = next((p for p, w in self._items if w is widget), None)
         if proxy is None:
             return
-        objetivo = 1.045 if hover else 1.0
-        anim = QPropertyAnimation(proxy, b"scale")
+        previa = self._anims.get(widget)
+        if previa is not None:
+            previa.stop()
+        anim = QPropertyAnimation(proxy, b"scale", self)
         anim.setDuration(140)
         anim.setEasingCurve(QEasingCurve.OutCubic)
         anim.setStartValue(proxy.scale())
-        anim.setEndValue(objetivo)
+        anim.setEndValue(1.045 if hover else 1.0)
         anim.start()
         self._anims[widget] = anim
-        # centra el crecimiento
-        centro = widget.rect().center()
-        proxy.setPos(proxy.pos().x() - (proxy.scale() - objetivo) * centro.x() / 2,
-                     proxy.pos().y() - (proxy.scale() - objetivo) * centro.y() / 2)
 
     def _reubicar(self):
         if not self._items:
