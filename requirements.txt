@@ -1,0 +1,5 @@
+# Interfaz grafica (Qt)
+PySide6>=6.6
+
+# Motor de busqueda (repo animelite-cli)
+animelite-engine @ git+https://github.com/DragonyteEvol/animelite-cli.git

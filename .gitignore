@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+build/
+dist/
+animelite.spec
+.cache/
+*.spec
+.cache/
+*.log
+*.tmp
+*.db
+*.sqlite
+.cache_img/
+.cache_poster/
